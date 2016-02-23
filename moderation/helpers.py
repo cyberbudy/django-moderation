@@ -21,7 +21,10 @@ def import_moderator(app):
     '''
     Import moderator module and register all models it contains with moderation
     '''
-    from django.utils.importlib import import_module
+    try:
+        from importlib import import_module
+    except ImportError:
+        from django.utils.importlib import import_module  # Python 2.6
     import imp
 
     try:
