@@ -11,6 +11,8 @@ except ImportError:
     from django.db.models.fields.related import RelatedField as ForeignObject
 from django.utils.html import escape
 
+from filer.fields.image import FilerImageField
+from filer.models.imagemodels import Image
 
 class BaseChange(object):
 
@@ -46,7 +48,15 @@ class ImageChange(BaseChange):
 
     @property
     def diff(self):
-        left_image, right_image = self.change
+        if isinstance(self.field, FilerImageField):
+            left_image = Image.objects.get(id=self.change[0]).icons["64"]
+            right_image = Image.objects.get(id=self.change[1]).icons["64"]
+        else:
+            try:
+                left_image, right_image = [x.url for x in self.change]
+            except:
+                left_image, right_image = self.change
+
         return self.render_diff(
             'moderation/image_diff.html',
             {'left_image': left_image, 'right_image': right_image})
@@ -63,7 +73,6 @@ def get_change(model1, model2, field, resolve_foreignkeys=False):
         else:
             value1 = field.value_from_object(model1)
             value2 = field.value_from_object(model2)
-
     change = get_change_for_type(
         field.verbose_name,
         (value1, value2),
@@ -118,7 +127,7 @@ def html_to_list(html):
 
 
 def get_change_for_type(verbose_name, change, field):
-    if isinstance(field, fields.files.ImageField):
+    if isinstance(field, (fields.files.ImageField, FilerImageField)):
         change = ImageChange(
             "Current %(verbose_name)s / "
             "New %(verbose_name)s" % {'verbose_name': verbose_name},
