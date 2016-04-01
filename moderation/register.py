@@ -1,9 +1,10 @@
 from __future__ import unicode_literals
+import copy
+
 from django.utils.six import with_metaclass
 from moderation.models import ModeratedObject, MODERATION_STATUS_PENDING,\
     MODERATION_STATUS_APPROVED, MODERATION_DRAFT_STATE
 from django.core.exceptions import ObjectDoesNotExist
-
 from django import VERSION
 if VERSION >= (1, 8):
     from django.contrib.contenttypes.fields import GenericRelation
@@ -145,9 +146,15 @@ class ModerationManager(with_metaclass(ModerationManagerSingleton, object)):
         # check if object was loaded from fixture, bypass moderation if so
         if kwargs['raw']:
             return
-
+        # print("PREMODERATE")
+        # print(instance)
         unchanged_obj = self._get_unchanged_object(instance)
         moderator = self.get_moderator(sender)
+        # try:
+        #     print([x for x in instance.transport_types.all()])
+        # except (AttributeError, ValueError):
+        #     print("NO TRTYPEs")
+        # print(unchanged_obj)
         if unchanged_obj:
             moderated_obj = self._get_or_create_moderated_object(instance,
                                                                  unchanged_obj,
@@ -179,15 +186,60 @@ class ModerationManager(with_metaclass(ModerationManagerSingleton, object)):
             moderated_object.changed_object = unchanged_obj
             return moderated_object
 
+        # print("_GET_OR_CREATE_MODERATED_OBJECT")
+        
         try:
             # if moderator.keep_history:
             #     moderated_object = get_new_instance(unchanged_obj)
             # else:
             #     moderated_object = ModeratedObject.objects.\
             #         get_for_instance(instance)
+            opts = instance._meta.concrete_model._meta
+            value_set = tuple(field for field in opts.local_fields + opts.
+                local_many_to_many)
+            data = {}
 
+            for f in value_set:
+                if f.many_to_many:
+                    if instance.pk is None:
+                            data[f.name] = []
+                    else:
+                        qs = f.value_from_object(instance)
+                        if qs._result_cache is not None:
+                            data[f.name] = [item.pk for item in qs]
+                        else:
+                            data[f.name] = list(qs.values_list('pk', flat=True))
+            # print(data)
+            # try:
+            #     print("TEMP SAVING")
+            #     trt =  copy.copy(instance.transport_types.all())
+            #     statuses = copy.copy(instance.statuses.all())
+            #     cargo_geography = copy.copy(instance.cargo_geography.all())
+            # except (AttributeError, ValueError):
+            #     print("NO TRTYPEs")
+            # print(trt)
+
+            # cpy_instance = instance
             moderated_object = ModeratedObject.objects.get_for_instance(
                 instance)
+            
+            for field, items in data.iteritems():
+                rel = getattr(instance, field)
+                rel.add(*items)
+            # print(statuses, trt, cargo_geography)
+            # if trt:
+            #     instance.transport_types.add(*trt)
+            # if statuses:
+            #     instance.statuses.add(*statuses)
+            # if cargo_geography:
+            #     instance.cargo_geography.add(*cargo_geography)
+
+            # try:
+            #     print("TRY")
+            #     print([x for x in instance.transport_types.all()])
+            # except (AttributeError, ValueError):
+            #     print("NO TRTYPEs")
+
             if moderated_object is None:
                 moderated_object = get_new_instance(unchanged_obj)
             elif moderator.keep_history and \
@@ -206,7 +258,8 @@ class ModerationManager(with_metaclass(ModerationManagerSingleton, object)):
                     moderated_object.changed_object = instance
                 else:
                     moderated_object.changed_object = unchanged_obj
-
+        # print("GET OR CREATE MODERATED OBJECT")
+        # print(moderated_object.changed_object)
         return moderated_object
 
     def get_moderator(self, model_class):
@@ -228,7 +281,6 @@ class ModerationManager(with_metaclass(ModerationManagerSingleton, object)):
 
         if kwargs['raw']:
             return
-
         pk = instance.pk
         moderator = self.get_moderator(sender)
 

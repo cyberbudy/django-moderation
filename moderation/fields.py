@@ -37,33 +37,72 @@ class SerializedObjectField(models.TextField):
     def _serialize(self, value):
         if not value:
             return ''
-
         value_set = [value]
+        opts = value._meta.concrete_model._meta
+
         if value._meta.parents:
             value_set += [getattr(value, f.name)
                           for f in list(value._meta.parents.values())
                           if f is not None]
 
-        return serializers.serialize(self.serialize_format, value_set)
+        value_set += (field.name for field in opts.local_fields + opts.local_many_to_many)
+        # print("_SERIALIZE FIELD")
+        # print(serializers.serialize(self.serialize_format, (value,), fields=value_set))
+        # print(list(serializers.serialize(self.serialize_format, (value,), fields=value_set))[0].content_object.m2m_data)
+        # raise ValueError
+        return serializers.serialize(self.serialize_format, (value,), fields=value_set)
 
     def _deserialize(self, value):
-        obj_generator = serializers.deserialize(
-            self.serialize_format,
-            value.encode(settings.DEFAULT_CHARSET),
-            ignorenonexistent=True)
+        from django.utils.encoding import force_text
+        obj_generator = list(serializers.deserialize(
+            "json",
+            force_text(value.encode("utf-8")),
+            ignorenonexistent=True))[0]
+        # print("DESERIALIZE")
+        # print(obj_generator)
+        # print(obj_generator.m2m_data)
+        # obj = next(obj_generator).object
+        # print(dir(obj_generator))
+        # print(value.encode(settings.DEFAULT_CHARSET),)
+        # for parent in obj_generator:
+        #     opts = value._meta.concrete_model._meta
+        #     value_set = (field.name for field in opts.local_fields + opts.local_many_to_many)
+        # print("VALUE_SET", value_set)
+        result = {}
 
-        obj = next(obj_generator).object
-        for parent in obj_generator:
-            for f in parent.object._meta.fields:
-                try:
-                    setattr(obj, f.name, getattr(parent.object, f.name))
-                except ObjectDoesNotExist:
-                    try:
-                        # Try to set non-existant foreign key reference to None
-                        setattr(obj, f.name, None)
-                    except ValueError:
-                        # Return None for changed_object if None not allowed
-                        return None
+        obj = obj_generator.object
+        for field in obj._meta.fields:
+            result[field.name] = field.value_from_object(obj)
+        # result.update(obj_generator.m2m_data)
+        # print(result)
+
+        for field, value in result.iteritems():
+            # print(field, value)
+            # print(field, value)
+            try:
+                setattr(obj, field, value)
+            except ValueError:
+                setattr(obj, field+"id", value)
+
+
+        for parent_class, field in obj._meta.concrete_model._meta.parents.items():
+            if obj._meta.proxy and parent_class == obj._meta.concrete_model:
+                continue
+            content_type = ContentType.objects.get_for_model(parent_class)
+            if field:
+                parent_id = force_text(getattr(obj, field.attname))
+            else:
+                parent_id = obj.pk
+            # for f in parent.object._meta.fields+value_set:
+            #     try:
+            #         setattr(obj, f.name, getattr(parent.object, f.name))
+            #     except ObjectDoesNotExist:
+            #         try:
+            #             # Try to set non-existant foreign key reference to None
+            #             setattr(obj, f.name, None)
+            #         except ValueError:
+            #             # Return None for changed_object if None not allowed
+            #             return None
         return obj
 
     def db_type(self, connection=None):
@@ -89,6 +128,8 @@ class SerializedObjectField(models.TextField):
                 if value:
                     setattr(kwargs['instance'], self.attname,
                             self._deserialize(value))
+                    # setattr(kwargs['instance'], self.attname, data.object)
+                    # setattr(kwargs['instance'], 'm2m_data', data.m2m_data)
                 else:
                     setattr(kwargs['instance'], self.attname, None)
 

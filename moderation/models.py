@@ -84,7 +84,6 @@ class ModeratedObject(models.Model):
     def save(self, *args, **kwargs):
         if self.instance:
             self.changed_object = self.instance
-
         super(ModeratedObject, self).save(*args, **kwargs)
 
     class Meta:
@@ -102,7 +101,6 @@ class ModeratedObject(models.Model):
             self.changed_by = user
             # No need to save here, both reject() and approve() will save us.
             # Just save below if the moderation result is PENDING.
-
         if self.moderator.visible_until_rejected:
             changed_object = self.get_object_for_this_type()
         else:
@@ -110,14 +108,13 @@ class ModeratedObject(models.Model):
         moderate_status, reason = self._get_moderation_status_and_reason(
             changed_object,
             user)
-
         if moderate_status == MODERATION_STATUS_REJECTED:
             self.reject(moderated_by=self.moderated_by, reason=reason)
         elif moderate_status == MODERATION_STATUS_APPROVED:
             self.approve(moderated_by=self.moderated_by, reason=reason)
         else:  # MODERATION_STATUS_PENDING
             self.save()
-
+        # self.save()
         return moderate_status
 
     def _get_moderation_status_and_reason(self, obj, user):
@@ -161,7 +158,6 @@ class ModeratedObject(models.Model):
         # ModeratedObject. In such cases, on approval, we should restore the
         # changes to the base object by saving the one attached to the
         # ModeratedObject.
-
         if (self.moderation_status == MODERATION_STATUS_PENDING and
                 new_status == MODERATION_STATUS_APPROVED and
                 not self.moderator.visible_until_rejected):
@@ -180,7 +176,6 @@ class ModeratedObject(models.Model):
             # This version is now approved, and will be reverted to if
             # future changes are rejected by a moderator.
             self.moderation_state = MODERATION_READY_STATE
-
         self.moderation_status = new_status
         self.moderation_date = datetime.datetime.now()
         self.moderated_by = moderated_by
@@ -220,21 +215,20 @@ class ModeratedObject(models.Model):
         changes = get_changes_between_models(original_obj,
                                              self.changed_object,
                                              fields_exclude)
-
+        print("CAHNDEF")
+        print(changes)
         for change in changes:
             left_change, right_change = changes[change].change
             if left_change != right_change:
                 return True
-
+        print("FASE")
         return False
 
     def approve(self, moderated_by=None, reason=None):
         pre_moderation.send(sender=self.changed_object.__class__,
                             instance=self.changed_object,
                             status=MODERATION_STATUS_APPROVED)
-
         self._moderate(MODERATION_STATUS_APPROVED, moderated_by, reason)
-
         post_moderation.send(sender=self.content_object.__class__,
                              instance=self.content_object,
                              status=MODERATION_STATUS_APPROVED)

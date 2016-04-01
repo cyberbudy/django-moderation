@@ -48,7 +48,6 @@ class ModerationAdmin(admin.ModelAdmin):
     def change_view(self, request, object_id, form_url='', extra_context=None):
         if self.admin_integration_enabled:
             self.send_message(request, object_id)
-
         try:
             return super(ModerationAdmin, self)\
                 .change_view(request, object_id, form_url=form_url,
@@ -94,7 +93,8 @@ class ModerationAdmin(admin.ModelAdmin):
                      "the moderation system.")
 
     def get_moderated_object_form(self, model_class):
-
+        print("MODELVALL")
+        print(model_class)
         class ModeratedObjectForm(BaseModeratedObjectForm):
 
             class Meta:
@@ -109,7 +109,7 @@ try:
     from moderation.filterspecs import RegisteredContentTypeListFilter
 except ImportError:
     # Django < 1.4
-    available_filters = ('content_type', 'moderation_status')
+    available_filters = ('content_type', 'moderation_status', "obj_type")
 else:
     # Django >= 1.4
     available_filters = (
@@ -141,7 +141,8 @@ class ModeratedObjectAdmin(admin.ModelAdmin):
         return str(obj.changed_object)
 
     def get_moderated_object_form(self, model_class):
-
+        print("MODELCLASS:")
+        print(model_class)
         class ModeratedObjectForm(ModelForm):
 
             class Meta:
@@ -171,6 +172,7 @@ class ModeratedObjectAdmin(admin.ModelAdmin):
             old_object,
             new_object,
             moderator.fields_exclude).values())
+        print(changes)
         if request.POST:
             admin_form = self.get_form(request, moderated_object)(request.POST)
 

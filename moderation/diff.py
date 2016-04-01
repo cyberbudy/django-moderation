@@ -85,8 +85,27 @@ def get_change(model1, model2, field, resolve_foreignkeys=False):
 def get_changes_between_models(model1, model2, excludes=[],
                                resolve_foreignkeys=False):
     changes = {}
-
-    for field in model1._meta.fields:
+    opts = model1._meta.concrete_model._meta
+    value_set = tuple(field for field in opts.local_fields + opts.
+        local_many_to_many)
+    data = {}
+    # print("GET CHANGED BETEWEEN MODELS")
+    # try:
+    #     print([x for x in model1.transport_types.all()])
+    # except (AttributeError, ValueError):
+    #     print("NO TRTYPEs")
+    for field in model1._meta.fields+value_set:
+        if field.many_to_many:
+            if model1.pk is None:
+                    data[field.name] = []
+            else:
+                qs = field.value_from_object(model1)
+                # print(field.value_from_object(model1), field.value_from_object(model2))
+                if qs._result_cache is not None:
+                    data[field.name] = [item.pk for item in qs]
+                else:
+                    data[field.name] = list(qs.values_list('pk', flat=True))
+            # print(data)
         if not (isinstance(field, fields.AutoField)):
             if field.name in excludes:
                 continue

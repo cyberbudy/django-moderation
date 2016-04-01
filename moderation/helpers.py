@@ -13,7 +13,6 @@ def automoderate(instance, user):
     except AttributeError:
         msg = "%s has been registered with Moderation." % instance.__class__
         raise RegistrationError(msg)
-
     return status
 
 
