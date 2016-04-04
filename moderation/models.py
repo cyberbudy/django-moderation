@@ -215,13 +215,10 @@ class ModeratedObject(models.Model):
         changes = get_changes_between_models(original_obj,
                                              self.changed_object,
                                              fields_exclude)
-        print("CAHNDEF")
-        print(changes)
         for change in changes:
             left_change, right_change = changes[change].change
             if left_change != right_change:
                 return True
-        print("FASE")
         return False
 
     def approve(self, moderated_by=None, reason=None):

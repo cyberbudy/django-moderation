@@ -93,8 +93,6 @@ class ModerationAdmin(admin.ModelAdmin):
                      "the moderation system.")
 
     def get_moderated_object_form(self, model_class):
-        print("MODELVALL")
-        print(model_class)
         class ModeratedObjectForm(BaseModeratedObjectForm):
 
             class Meta:
@@ -141,8 +139,6 @@ class ModeratedObjectAdmin(admin.ModelAdmin):
         return str(obj.changed_object)
 
     def get_moderated_object_form(self, model_class):
-        print("MODELCLASS:")
-        print(model_class)
         class ModeratedObjectForm(ModelForm):
 
             class Meta:
@@ -172,7 +168,6 @@ class ModeratedObjectAdmin(admin.ModelAdmin):
             old_object,
             new_object,
             moderator.fields_exclude).values())
-        print(changes)
         if request.POST:
             admin_form = self.get_form(request, moderated_object)(request.POST)
 

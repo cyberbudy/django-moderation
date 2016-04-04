@@ -80,7 +80,6 @@ class ModerationObjectsManager(Manager):
 
     def get_queryset(self):
         query_set = None
-        # print("GET QUERYSET")
         if django_17():
             query_set = super(ModerationObjectsManager, self).get_queryset()
         else:
@@ -105,11 +104,6 @@ class ModerationObjectsManager(Manager):
 class ModeratedObjectManager(Manager):
     def get_for_instance(self, instance):
         '''Returns ModeratedObject for given model instance'''
-        # print("GETFORINSTANCVE")
-        # try:
-        #     print([x for x in instance.transport_types.all()])
-        # except (AttributeError, ValueError):
-        #     print("NO TRTYPEs")
         try:
             moderated_object = self.get(object_pk=instance.pk,
                                         content_type=ContentType.objects
@@ -120,8 +114,4 @@ class ModeratedObjectManager(Manager):
                                            content_type=ContentType.objects
                                            .get_for_model(instance.__class__))\
                 .order_by('-date_updated')[0]
-        # try:
-        #     print([x for x in instance.transport_types.all()])
-        # except (AttributeError, ValueError):
-        #     print("NO TRTYPEs")
         return moderated_object

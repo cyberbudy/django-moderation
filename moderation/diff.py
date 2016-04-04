@@ -44,6 +44,21 @@ class TextChange(BaseChange):
             {'diff_operations': get_diff_operations(*self.change)})
 
 
+class ForeignKeyChange(BaseChange):
+
+    @property
+    def diff(self):
+        print("diff")
+        print(self.change[0], self.change[1])
+        # value1, value2 = escape(self.change[0]), escape(self.change[1])
+        # if value1 == value2:
+        #     return value1
+
+        # return self.render_diff(
+        #     'moderation/html_diff.html',
+        #     {'diff_operations': get_diff_operations(*self.change)})
+
+
 class ImageChange(BaseChange):
 
     @property
@@ -73,6 +88,7 @@ def get_change(model1, model2, field, resolve_foreignkeys=False):
         else:
             value1 = field.value_from_object(model1)
             value2 = field.value_from_object(model2)
+    print("GET_CHANGE")
     change = get_change_for_type(
         field.verbose_name,
         (value1, value2),
@@ -83,29 +99,23 @@ def get_change(model1, model2, field, resolve_foreignkeys=False):
 
 
 def get_changes_between_models(model1, model2, excludes=[],
-                               resolve_foreignkeys=False):
+                               resolve_foreignkeys=True):
+    print("GET_CHANGES_BETWEEN_MODELS")
     changes = {}
     opts = model1._meta.concrete_model._meta
     value_set = tuple(field for field in opts.local_fields + opts.
         local_many_to_many)
     data = {}
-    # print("GET CHANGED BETEWEEN MODELS")
-    # try:
-    #     print([x for x in model1.transport_types.all()])
-    # except (AttributeError, ValueError):
-    #     print("NO TRTYPEs")
     for field in model1._meta.fields+value_set:
         if field.many_to_many:
             if model1.pk is None:
                     data[field.name] = []
             else:
                 qs = field.value_from_object(model1)
-                # print(field.value_from_object(model1), field.value_from_object(model2))
                 if qs._result_cache is not None:
                     data[field.name] = [item.pk for item in qs]
                 else:
                     data[field.name] = list(qs.values_list('pk', flat=True))
-            # print(data)
         if not (isinstance(field, fields.AutoField)):
             if field.name in excludes:
                 continue
@@ -146,12 +156,18 @@ def html_to_list(html):
 
 
 def get_change_for_type(verbose_name, change, field):
+    print("get_change_for_type")
+    print(field)
     if isinstance(field, (fields.files.ImageField, FilerImageField)):
         change = ImageChange(
             "Current %(verbose_name)s / "
             "New %(verbose_name)s" % {'verbose_name': verbose_name},
             field,
             change)
+    elif isinstance(field, (fields.ForeignKey)):
+        change = ForeignKeyChange(
+            verbose_name, field, change
+        )
     else:
         value1, value2 = change
         if sys.version < '3':

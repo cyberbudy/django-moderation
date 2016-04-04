@@ -46,10 +46,6 @@ class SerializedObjectField(models.TextField):
                           if f is not None]
 
         value_set += (field.name for field in opts.local_fields + opts.local_many_to_many)
-        # print("_SERIALIZE FIELD")
-        # print(serializers.serialize(self.serialize_format, (value,), fields=value_set))
-        # print(list(serializers.serialize(self.serialize_format, (value,), fields=value_set))[0].content_object.m2m_data)
-        # raise ValueError
         return serializers.serialize(self.serialize_format, (value,), fields=value_set)
 
     def _deserialize(self, value):
@@ -58,27 +54,18 @@ class SerializedObjectField(models.TextField):
             "json",
             force_text(value.encode("utf-8")),
             ignorenonexistent=True))[0]
-        # print("DESERIALIZE")
-        # print(obj_generator)
-        # print(obj_generator.m2m_data)
-        # obj = next(obj_generator).object
-        # print(dir(obj_generator))
-        # print(value.encode(settings.DEFAULT_CHARSET),)
+
         # for parent in obj_generator:
         #     opts = value._meta.concrete_model._meta
         #     value_set = (field.name for field in opts.local_fields + opts.local_many_to_many)
-        # print("VALUE_SET", value_set)
         result = {}
 
         obj = obj_generator.object
         for field in obj._meta.fields:
             result[field.name] = field.value_from_object(obj)
         # result.update(obj_generator.m2m_data)
-        # print(result)
 
         for field, value in result.iteritems():
-            # print(field, value)
-            # print(field, value)
             try:
                 setattr(obj, field, value)
             except ValueError:
